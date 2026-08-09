@@ -1,0 +1,63 @@
+YY3568 rk chainloader U-Boot source
+===================================
+
+This tree is official U-Boot v2026.07 at commit
+ece349ade2973e220f524ce59e59711cc919263f with the board files derived from
+Armbian commit a710f6715cc06fc90dfdd69fb93d642c52f3a3b8 and this board-scoped
+overlay applied.
+
+To reproduce the configuration from an extracted rk release bundle:
+
+  make CROSS_COMPILE=aarch64-linux-gnu- youyeetoo-yy3568-rk3568_defconfig
+  scripts/kconfig/merge_config.sh -m .config configs/yy3568-chainload.config
+  make CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+  BL31=../../loaders/rk3568_bl31_v1.46.elf \
+    ROCKCHIP_TPL=../../loaders/rk3568_ddr_1560MHz_v1.25.bin \
+    make CROSS_COMPILE=aarch64-linux-gnu- all
+
+The SD payload is the resulting `u-boot-rockchip.bin`. Write that complete
+binman image at the Rockchip 32 KiB offset; do not wrap the rk first stage and
+U-Boot FIT in another `mkimage -T rksd` container.
+
+To reproduce the NVMe-only SD variant, start from a second clean extraction of
+this same source archive and merge both fragments, in this order:
+
+  make CROSS_COMPILE=aarch64-linux-gnu- youyeetoo-yy3568-rk3568_defconfig
+  scripts/kconfig/merge_config.sh -m .config configs/yy3568-chainload.config \
+    configs/yy3568-sd-nvme-only.config
+  make CROSS_COMPILE=aarch64-linux-gnu- olddefconfig
+  BL31=../../loaders/rk3568_bl31_v1.46.elf \
+    ROCKCHIP_TPL=../../loaders/rk3568_ddr_1560MHz_v1.25.bin \
+    make CROSS_COMPILE=aarch64-linux-gnu- all
+
+The U-Boot DTS override keeps the RK3568 PCIe 3 PHY in its default aggregated
+x2 mode for `pcie3x2`; a `data-lanes` mapping would enable x1+x1 bifurcation.
+GPIO3_A7 drives the external PCIe clock-buffer enable active-low, matching the
+manufacturer's YY3568 storage documentation; adding `enable-active-high` turns
+off the reference clock and makes the RK3568 PCIe PHY time out with status
+0x6890000. It preserves the YY3568 storage, PMIC, UART2, and regulator data. It
+also enables the board's JEDEC SPI NOR using the reviewed SFC pinmux and forces
+inline FIT payload data because rk's first stage rejects external
+data-position/data-offset layouts.
+
+YY3568 PCIe power and clock-enable reference:
+https://wiki.youyeetoo.cn/zh/YY3568/OUSTORAGE
+
+Before creating this source snapshot, the repository build applies the two
+upstream U-Boot PCIe fixes listed by the board manifest. They enable the
+Rockchip controller clocks before PHY initialization and remove two unbalanced
+`clk_release_bulk()` calls. These are required by the pinned v2026.07 source,
+whose original ordering can attempt to lock the RK3568 PHY PLL while its
+reference-clock path is still off.
+
+Upstream submissions:
+https://lists.u-boot-project.org/pipermail/u-boot/2026-May/619272.html
+https://www.mail-archive.com/u-boot@lists.denx.de/msg574897.html
+
+Mainline loads BL33 at 0x00800000 and starts with its stack below 0x03f00000.
+The board-local include/configs/evb_rk3568.h selects removable SD, NVMe, eMMC,
+SCSI, USB, PXE, then DHCP. The chainload config keeps a three-second UART
+interruption window and sets the Linux DTB name to rockchip/rk3568-yy3568.dtb.
+SPI commands remain interactive and SPI is not an automatic OS target.
+The NVMe-only fragment replaces the default command with
+`bootflow scan -lb nvme`; if that scan fails, U-Boot returns to its prompt.

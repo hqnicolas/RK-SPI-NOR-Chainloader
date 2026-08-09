@@ -1,0 +1,160 @@
+#ifndef PINE_BOOT
+#define PINE_BOOT
+
+#ifndef STACK_TOP
+#define STACK_TOP 0xc0000000
+#endif
+#define STACK_SIZE 0x10000
+// Stack pointer for EL2 payload (TODO: may conflict with firmware stack)
+#define STACK2_TOP (STACK_TOP - (STACK_SIZE / 2))
+
+#ifndef __ASM__
+#include <stdint.h>
+
+/// End of image, aligned. defined in linker script.
+extern char _end_of_image[];
+
+/// Get platform's preferred gpio address
+volatile void *plat_get_uart_base(void);
+
+/// Write the platform memory map structure into a buffer
+/// May not be accurate if the payload has been relocated.
+void plat_get_mem_map(void *buffer);
+
+/// Get address for where framebuffer should be stored (should be setup as noncache memory)
+uintptr_t plat_get_framebuffer(void);
+
+/// Function that implements platform-specific firmware calls
+uint64_t plat_process_firmware_call(uint64_t p1, uint64_t p2, uint64_t p3, uint64_t p4);
+
+/// Sets up MMU tables using a preallocated buffer
+/// buffer must be at least 8kb
+void plat_setup_mmu(void *buffer);
+
+/// Implements base firmware calls (PSCI and such)
+uint64_t process_firmware_call(uint64_t p1, uint64_t p2, uint64_t p3, uint64_t p4);
+
+/// Hand over control to the payload
+void jump_to_payload(void);
+
+void plat_shutdown(void);
+void plat_reset(void);
+
+/// Set direction (IN/OUT of a pin)
+void gpio_set_dir(int gpio, int pin, int bit);
+/// Set value (high/low) of a pin
+void gpio_set_pin(int gpio, int pin, int bit);
+/// Mask interrupt of a pin
+void gpio_pin_mask_int(int gpio, int pin);
+/// Read value of a pin
+int gpio_get_pin(int gpio, int pin);
+
+// Rockchip register design: in order to write bit x, bit x + 16 must be 1.
+// If bit x is 1 but x + 16 is 0, the write will be denied.
+// In this func: rk_clr_set_bits(&a, 5, 0, 0x0); == sets bits [5:0] of ptr a
+void rk_clr_set_bits(volatile void *d, int bit_end, int bit_start, int v);
+
+void start_in_el2(uintptr_t addr, uintptr_t stack_pointer);
+void start_in_el2_32bit(uintptr_t addr);
+void start_in_el1(uintptr_t addr);
+
+// asm.S
+void asm_dc_civac(uint64_t addr);
+void asm_dc_ivac(uint64_t addr);
+void asm_dc_cvac(uint64_t addr);
+void asm_set_cnt_freq(uint64_t hz);
+void asm_enable_ints(void);
+void asm_enable_int_groups(int scratch);
+void asm_disable_ints(void);
+uint64_t asm_get_el_es(void);
+uint64_t asm_get_mpidr(void);
+uint32_t asm_get_el(void);
+void setup_tt_el3(uint64_t tcr, uint64_t mair, uintptr_t ttbr0);
+void enable_mmu_el3(void);
+void disable_mmu_el3(void);
+/// Enable data cache coherency between all CPU cores of all clusters
+void asm_enable_smp_cache_coherency(void);
+/// Return value of CPU tick timer in microseconds
+uint64_t asm_get_cpu_timer(void);
+/// Performs dc civac on memory region
+void dcache_flush(uintptr_t start_addr, uintptr_t end_addr);
+/// Performs dc ivac
+void dcache_invalidate(uintptr_t start_addr, uintptr_t end_addr);
+/// Performs dc cvac
+void dcache_clean(uintptr_t start_addr, uintptr_t end_addr);
+
+// edp.c
+int edp_init(uintptr_t edp_addr);
+int edp_enable(uintptr_t edp_addr, uint32_t link_rate, uint32_t lane_count);
+
+// lib.c
+void usleep(unsigned int us);
+void msleep(unsigned int us);
+void abort(void);
+void halt(void);
+void nop_sleep(void);
+void nop_sleep_short(void);
+void itoa(uint64_t n, char *buffer, int base);
+char *strcpy(char *dst, const char *src);
+void cheap_memdump(const uint8_t *addr, int n);
+
+// pl011.c, lib.c
+void enable_uart(void);
+void uart_init(unsigned int baud_rate);
+int uart_get(void);
+void uart_chr(int c);
+int putchar(int c);
+void debug(const char *str, uint64_t reg);
+void sdebug(char *buf, const char *str, uint64_t reg);
+int puts(const char *str);
+
+// mmu.c
+int ttbl_block_1gb(uint8_t *buf, uint64_t oa, uint64_t mair_i);
+int ttbl_block_2mb(uint8_t *buf, uint64_t oa, uint64_t mair_i);
+int ttbl_table_entry(uint8_t *buf, uint64_t oa);
+inline static uintptr_t align_to_4kb(uintptr_t buf) {
+	if ((buf & 0xfff) != 0x0)
+		buf = (buf + 0x1000) & ~0xfff;
+	return buf;
+}
+
+#endif
+
+// https://github.com/torvalds/linux/blob/05d3ef8bba77c1b5f98d941d8b2d4aeab8118ef1/include/dt-bindings/pinctrl/rockchip.h
+#define RK_PIN_A0 0
+#define RK_PIN_A1 1
+#define RK_PIN_A2 2
+#define RK_PIN_A3 3
+#define RK_PIN_A4 4
+#define RK_PIN_A5 5
+#define RK_PIN_A6 6
+#define RK_PIN_A7 7
+
+#define RK_PIN_B0 8
+#define RK_PIN_B1 9
+#define RK_PIN_B2 10
+#define RK_PIN_B3 11
+#define RK_PIN_B4 12
+#define RK_PIN_B5 13
+#define RK_PIN_B6 14
+#define RK_PIN_B7 15
+
+#define RK_PIN_C0 16
+#define RK_PIN_C1 17
+#define RK_PIN_C2 18
+#define RK_PIN_C3 19
+#define RK_PIN_C4 20
+#define RK_PIN_C5 21
+#define RK_PIN_C6 22
+#define RK_PIN_C7 23
+
+#define RK_PIN_D0 24
+#define RK_PIN_D1 25
+#define RK_PIN_D2 26
+#define RK_PIN_D3 27
+#define RK_PIN_D4 28
+#define RK_PIN_D5 29
+#define RK_PIN_D6 30
+#define RK_PIN_D7 31
+
+#endif

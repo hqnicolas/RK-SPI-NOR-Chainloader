@@ -1,0 +1,137 @@
+// Specification for an extension of PSCI that acts like a bootloader and provides UEFI-like functionality
+#ifndef FUBOOT_H
+#define FUBOOT_H
+#include <stdint.h>
+
+// Beginning of the payload binary that is booted into
+#define PAYLOAD_FLAG_REQUIRES_RELOCATION (1 << 0)
+#define PAYLOAD_FLAG_POSITION_INDEPENDENT (1 << 1)
+struct __attribute__((packed)) FuPayloadHeader {
+	/// This small section can contain setup code to setup registers and jump to
+	/// whatever runs next.
+	uint8_t boot_code[0x28];
+	/// Expected to be 0x8008135
+	uint32_t magic;
+	/// Version of FUEFI this binary expects
+	uint32_t version;
+	/// See PAYLOAD_FLAG_*
+	uint32_t flags;
+	// Size of this entire image, including header
+	uint32_t img_size;
+	/// If flags & PAYLOAD_FLAG_REQUIRES_RELOCATION, then the binary is relocated
+	/// to this address.
+	uint64_t relocation_addr;
+	uint32_t res1;
+	uint32_t res2;
+	uint32_t res3;
+	uint32_t res4;
+	// Code payload follows the header...
+};
+
+_Static_assert(sizeof(struct FuPayloadHeader) == 0x50, "Payload header size check");
+
+// Calling rules:
+// - Compatible with PSCI
+// - 4 arguments are accepted into an call
+// - FU_ERROR is returned for an error or unsupported command
+// - Structures/pointers returned from commands must be in memory accessible by all exception levels, and must always stay intact
+// - Pointers returned must also be below 4GB
+
+#define FU_ERROR 0xffffffffffffffff
+
+/// If payload is booted in EL3, a pointer to this function signature is stored in x0
+/// when entering the payload binary. It can be called instead of using smc to trigger the firmware handler.
+typedef uint64_t fu_call_handler(uint64_t a0, uint64_t a1, uint64_t a2, uint64_t a3);
+
+// ARM Standard PSCI smc/svc commands
+#define PSCI_VERSION          0x84000000
+#define PSCI_SYSTEM_OFF       0x84000008
+#define PSCI_SYSTEM_RESET     0x84000009
+#define PSCI_FEATURES         0x8400000a
+
+// 0xf0xxxxxx: Basic system commands
+
+// x0: ASCII character to be printed to console
+#define FU_PRINT_CHAR         0xf0000000
+// x0: Pointer to null terminated C string
+#define FU_PRINT_STR          0xf0000001
+// returns: Character from input, 0 if no input is queued.
+#define FU_GET_CHAR           0xf0000002
+// returns: 1 if input for GET_CHAR is queued, 0 if not
+#define FU_POLL_CHAR          0xf0000003
+// returns: Pointer to FuMemoryMapItem structure that represents largest free chunk of free memory in 32bit address space
+#define FU_GET_MEM_CHUNK      0xf0000004
+// returns: pointer to FuMemoryMap structure
+#define FU_GET_MEM_MAP        0xf0000005
+// returns: pointer to FuDeviceInfo structure
+#define FU_GET_DEVICE_INFO    0xf0000007
+// returns: pointer to dtb. Will last forever
+#define FU_GET_DTB            0xf0000008
+
+// 0xf1xxxxxx: Device enumeration commands
+
+// Get a list of screens/framebuffers
+// returns: Pointer to FuScreenList structure
+#define FU_GET_SCREEN_LIST    0xf1000000
+
+// 0xf2xxxxxx: Generic operator commands
+
+// Generic read command
+// x0: mmio address
+// x1: buffer address
+// x2: start block
+// x3: end block
+#define FU_STORAGE_READ       0xf2000000
+// Generic write command
+// x0: mmio address
+// x1: buffer address
+// x2: start block
+// x3: end block
+#define FU_STORAGE_WRITE      0xf2000001
+// Set the brightness of a screen
+// x0: id of screen
+// x1: Value 0-100
+#define FU_SET_BRIGHTNESS     0xf2000002
+
+struct __attribute__((packed)) FuScreenList {
+	uint32_t length;
+	uint32_t type;
+	struct __attribute__((packed)) FuScreen {
+		uint64_t framebuffer_addr;
+		uint32_t width;
+		uint32_t height;
+		uint32_t stride;
+		uint32_t id;
+	}screens[];
+};
+
+// Map to any type
+#define FU_MEM_ATTR_UNUSED (1 << 0)
+// Map to normal memory
+#define FU_MEM_ATTR_RESERVED (1 << 1)
+// Map to write through memory
+#define FU_MEM_ATTR_FRAMEBUFFER (1 << 2)
+// map to ngnrne device memory
+#define FU_MEM_ATTR_MMIO (1 << 3)
+// Payload (binary calling into this interface) is in this region
+// map as normal memory
+#define FU_MEM_ATTR_PAYLOAD (1 << 4)
+
+// A primitive memory map layout
+// TODO: Untested, this may not be complete enough
+struct __attribute__((packed)) FuMemoryMap {
+	uint32_t length;
+	uint32_t pad;
+	struct __attribute__((packed)) FuMemoryMapItem {
+		uint64_t start_addr;
+		uint64_t end_addr;
+		uint32_t flags;
+		uint32_t pad2;
+	}items[];
+};
+
+struct __attribute__((packed)) FuDeviceInfo {
+	char vendor[16];
+	char product[16];
+};
+#endif

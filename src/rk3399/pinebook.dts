@@ -1,0 +1,62 @@
+/* reference: https://github.com/torvalds/linux/blob/master/arch/arm64/boot/dts/rockchip/rk3399-base.dtsi
+* https://github.com/torvalds/linux/blob/master/arch/arm64/boot/dts/rockchip/rk3399-pinebook-pro.dts
+*/
+
+/dts-v1/;
+#include "../dts-glue.h"
+
+/ {
+	model = "Pine64 Pinebook Pro";
+	compatible = "rockchip,rk3399";
+	interrupt-parent = <&gic>;
+	#address-cells = <2>;
+	#size-cells = <2>;
+	usb_host0_ohci: usb@fe3a0000 {
+		compatible = "generic-ohci";
+		interrupts = <GIC_SPI 28 IRQ_TYPE_LEVEL_HIGH 0>;
+		//reg = <0x0 0xfe3a0000 0x0 0x10000>;
+		//status = "okay";
+	};
+	gic: interrupt-controller@fee00000 {
+		compatible = "arm,gic-v3";
+		#interrupt-cells = <4>;
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		interrupt-controller;
+
+		reg = <0x0 0xfee00000 0 0x10000>, /* GICD */
+		      <0x0 0xfef00000 0 0xc0000>, /* GICR */
+		      <0x0 0xfff00000 0 0x10000>, /* GICC */
+		      <0x0 0xfff10000 0 0x10000>, /* GICH */
+		      <0x0 0xfff20000 0 0x10000>; /* GICV */
+		its: msi-controller@fee20000 {
+			compatible = "arm,gic-v3-its";
+			msi-controller;
+			#msi-cells = <1>;
+			reg = <0x0 0xfee20000 0x0 0x20000>;
+		};
+	};
+	i2c4: i2c@ff3d0000 {
+		compatible = "rockchip,rk3399-i2c";
+		//reg = <0x0 0xff3d0000 0x0 0x1000>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cw2015@62 {
+			compatible = "cellwise,cw2015";
+			reg = <0x62>;
+		};
+	};
+	sdmmc: mmc@fe320000 {
+		/* TODO: This is actually rockchip,rk3288-dw-mshc, requrires some extra setup/config */
+		compatible = "snps,dw-mshc";
+		//reg = <0x0 0xfe320000 0x0 0x4000>;
+		interrupts = <GIC_SPI 65 IRQ_TYPE_LEVEL_HIGH 0>;
+	};
+	sdhci: mmc@fe330000 {
+		compatible = "arasan,sdhci-5.1";
+		//reg = <0x0 0xfe330000 0x0 0x10000>;
+		interrupts = <GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH 0>;
+	};
+};

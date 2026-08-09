@@ -1,0 +1,20 @@
+/* Minimal dts based on
+* genbook: https://github.com/torvalds/linux/blob/master/arch/arm64/boot/dts/rockchip/rk3588-coolpi-cm5-genbook.dts */
+/dts-v1/;
+
+#include "rk3588.dtsi"
+
+/ {
+	model = "Cool-Pi Genbook";
+	i2c4: i2c@feac0000 {
+		compatible = "rockchip,rk3399-i2c";
+		//reg = <0x0 0xfeac0000 0x0 0x1000>;
+		pinctrl-names = "default";
+		#address-cells = <1>;
+		#size-cells = <0>;
+		cw2015@62 {
+			compatible = "cellwise,cw2015";
+			reg = <0x62>;
+		};
+	};
+};

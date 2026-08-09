@@ -1,0 +1,26 @@
+Radxa ROCK 3A SPI-NOR tutorial image provenance
+================================================
+
+Retrieved: 2026-08-03
+Source page: https://wiki.radxa.com/Rock3/install/spi
+Attribution: Copyright Radxa Computer (Shenzhen)
+License: Creative Commons Attribution 3.0 Unported
+License URL: https://creativecommons.org/licenses/by/3.0/
+
+rock3a-usb-otg-port.png
+  Source: https://wiki.radxa.com/mw/images/c/ca/Rock-3a-usb-otg-port.png
+  Dimensions: 567x299
+  Bytes: 306424
+  SHA-256: c3f3faae0d31abdd9726130ff78c10d5e14937b8a03a8b25b3afab3214455077
+
+rock3a-maskrom-jumper.png
+  Source: https://wiki.radxa.com/mw/images/7/70/Rock-3a-disable-spi-nor-flash.png
+  Dimensions: 567x513
+  Bytes: 534381
+  SHA-256: efdd728f93f2585606100a8cdddbad55300957fce251fa112e50d2dce0454261
+
+rkdevtool-maskrom-device.png
+  Source: https://wiki.radxa.com/mw/images/thumb/b/b9/Rkdevtool-found-one-maskrom-device.png/1000px-Rkdevtool-found-one-maskrom-device.png
+  Dimensions: 1000x504
+  Bytes: 233292
+  SHA-256: 865986d63720cf9c1b2540f64154a0db512eefc0414ba43ce5f2c88951540f8a

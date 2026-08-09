@@ -1,0 +1,38 @@
+From: Daniele Briguglio <hello@superkali.me>
+Subject: [PATCH v3 3/4] pci: pcie_dw_rockchip: drop clk_release_bulk calls
+
+clk_release_bulk() disables each clock but does not release the devm-managed
+bulk allocation. The parse error path calls it before clocks are enabled, and
+the probe error path calls it after init_port() has already disabled them.
+Drop both calls to keep regulator-backed clock enable counts balanced.
+
+Backported from:
+https://www.mail-archive.com/u-boot@lists.denx.de/msg574897.html
+
+---
+ drivers/pci/pcie_dw_rockchip.c | 3 +--
+ 1 file changed, 1 insertion(+), 2 deletions(-)
+
+diff --git a/drivers/pci/pcie_dw_rockchip.c b/drivers/pci/pcie_dw_rockchip.c
+index 8ea51e642..c1e34df53 100644
+--- a/drivers/pci/pcie_dw_rockchip.c
++++ b/drivers/pci/pcie_dw_rockchip.c
+@@ -425,7 +425,7 @@ static int rockchip_pcie_parse_dt(struct udevice *dev)
+ rockchip_pcie_parse_dt_err_phy_get_by_index:
+ 	/* regulators don't need release */
+ rockchip_pcie_parse_dt_err_supply_regulator:
+-	clk_release_bulk(&priv->clks);
++	/* clocks don't need release */
+ rockchip_pcie_parse_dt_err_clk_get_bulk:
+ 	reset_release_bulk(&priv->rsts);
+ rockchip_pcie_parse_dt_err_reset_get_bulk:
+@@ -476,7 +476,6 @@ static int rockchip_pcie_probe(struct udevice *dev)
+ 		return ret;
+ 
+ rockchip_pcie_probe_err_init_port:
+-	clk_release_bulk(&priv->clks);
+ 	reset_release_bulk(&priv->rsts);
+ 	dm_gpio_free(dev, &priv->rst_gpio);
+ 
+-- 
+2.47.3
