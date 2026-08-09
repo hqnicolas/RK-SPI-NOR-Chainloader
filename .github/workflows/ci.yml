@@ -85,7 +85,7 @@ jobs:
         spi=$(python3 tools/chainload-manifest.py get "${BOARD}" artifacts.spi_nor)
         "${mkimage}" -n rk3568 -T rksd -d "${ddr}:${binary}" \
           "${RUNNER_TEMP}/reference-idblock.img"
-        "${mkimage}" -n rk3568 -T rkspi -d "${ddr}:${binary}" \
+        "${mkimage}" -n rk3568 -T rksd -d "${ddr}:${binary}" \
           "${RUNNER_TEMP}/reference-spi.img"
         cmp "${RUNNER_TEMP}/reference-idblock.img" "${idblock}"
         cmp "${RUNNER_TEMP}/reference-spi.img" "${spi}"
